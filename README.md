@@ -14,6 +14,9 @@ Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 
 - asdf:
   - asdf
+- <ins>Test/dummy programs:</ins> To illustrate the functionality of this lightweight checkpointing program, the following dummy programs are included.
+  - `counting-test.c`: 
+  - `hello-test.c`: 
 
 ## Areas for Future Improvement
 

@@ -1,13 +1,17 @@
 CC=gcc
 CFLAGS=-std=gnu17 -g3 -O0
 
-all: ckpt readckpt restart counting-test
+all: ckpt readckpt restart counting-test hello-test
 
-#========================
+# ===========================================
 
-# https://stackoverflow.com/questions/36692315/what-exactly-does-rdynamic-do-and-when-exactly-is-it-needed
 counting-test: counting-test.c 
-	${CC} ${CFLAGS} -rdynamic -o $@ $<
+	${CC} ${CFLAGS} -rdynamic -o $@ $<  # -rdynamic used to tell ckpt about counting-test symbols
+
+hello-test: hello-test.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<  # -rdynamic used to tell ckpt about hello-test symbols
+
+# ===========================================
 
 ckpt: ckpt0 libckpt.so
 	cp $< $@
@@ -42,5 +46,5 @@ build:
 	make all
 
 clean:
-	rm -f a.out counting-test
+	rm -f a.out counting-test hello-test
 	rm -f libckpt.so libckpt.o ckpt restart readckpt myckpt.dat

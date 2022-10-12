@@ -4,7 +4,6 @@
 #include <limits.h>  // used for INT_MAX
 #include <assert.h>
 
-
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
 		fprintf(stderr, "Usage: \"%s [POSITIVE_INTEGER]\"\n", argv[0]);

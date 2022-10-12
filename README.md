@@ -2,6 +2,8 @@
 
 asdf
 
+exploit the fact that a program first runs `_start`, which first looks at constructors and then main, before finally calling `_exit`.
+
 rdynamic compilation flag
 
 dummy programs to run ckpt with (counting-test, hello-test)

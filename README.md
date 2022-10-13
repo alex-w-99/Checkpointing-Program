@@ -2,7 +2,7 @@
 
 A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out ...`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") at any time thereafter by running `./restart` and the program `a.out` will pick up right where it left off.
 
-This program is entirely self-contained, meaning that any executable compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `-rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
+This program is entirely self-contained; any executable compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `-rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
 
 More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before `main` is called (which itself eventually calls `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
 
@@ -13,7 +13,8 @@ Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 ## Items to Note When Using Program
 - <ins>Quick Sample Usage in Makefile:</ins> By running the command `make check`, the Makefile will compile all included files and execute an example of the functionality described above.
 - <ins>Segmentation Fault Following Successful Restart:</ins> After a checkpoint image file is created, you will observe that running `./restart` will eventually `SEGFAULT` upon completion of the original program. Please know that this segmentation fault is wholly inconsequential to the restart and execution of the program. 
-  - This benign `SEGFAULT` results as a consequence of the `ucontext_t` context variable, which is used to store certain register values of the process at the time the `SIGUSR2` signal was received. More specifically, the `ucontext_t` variable from `ucontext.h` does *not* store the data of the `%fs` register. Therefore, upon restart, the program's `%fs` register contains a garbage value which differs from the original `%fs` value at the time the original process was inturrupted. Because it so happens that `exit` uses this register value, the bad `%fs` register value here results in a segmentation fault. This problem can be corrected by manually storing the value of this register somewhere in the checkpoint image file, and then setting its value equal to the register upon restart (please see the Areas for Future Improvement section below).
+  - This benign `SEGFAULT` results as a consequence of the `ucontext_t` context variable that was written to and read from the checkpoint image file. This context variable is used to store certain register values of the process at the time the `SIGUSR2` signal was received. More specifically, the `ucontext_t` variable from `ucontext.h` does *not* store the data of the `%fs` register. Therefore, upon restart, the program's `%fs` register contains a garbage value which differs from the original `%fs` value at the time the original process was inturrupted. Because it so happens that `exit` uses this register value, the bad `%fs` register value here results in a segmentation fault. 
+  - Therefore, this problem could be corrected by manually writing and later reading the value of this register somewhere in the checkpoint image file, and then setting its value equal to the register upon restart (please see the Areas for Future Improvement section below).
 - <ins>Stack Smashing:</ins> On some computers, running `./restart` after generating a checkpoint image file will result in a stack smashing detected error. This issue can be avoided by compiling libckpt.c with the flag `-fno-stack-protector`.
 
 ## Implementation Details
@@ -35,7 +36,9 @@ Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 
 ## Screenshots
 
-asdf
+<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/checkpointing_screenshot1.png" width="500">
+
+<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/checkpointing_screenshot2.png" width="500">
 
 ## Acknowledgements 
 

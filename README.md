@@ -1,21 +1,23 @@
 # Lightweight Checkpointing Program
 
-A lightweight checkpointing program written in C. This program is entirely self-contained, meaning any executable that is compiled with the flag `gcc -rdynamic` is compatible with this software.
+A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") by running `./restart` and it will pick up right where it left off.
 
-More specifically, this program  
+This program is entirely self-contained, meaning any executable that is compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
 
-exploit the fact that a program first runs `_start`, which first looks at constructors and then main, before finally calling `_exit`.
+More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before it calls `main` (which eventually calls `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
 
-rdynamic compilation flag
+
 
 dummy programs to run ckpt with (counting-test, hello-test)
+
+discuss stack smashing
 
 discuss `%fs` register which predates ucontext.h, so that therei is a bad `%fs` register value upon restart, thus leading to a segfault
 
 
 
 
-Concepts covered in this project include (but are not limited to) signal handling, constructor functions, context switches, checkpointing, environment variables, memory layout, system calls like `mmap`, etc. 
+Concepts covered in this project include (but are not limited to) checkpointing, context switching, signal handling, environment variables, constructor functions, memory layout, system calls like `mmap`, etc. 
 
 Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 
@@ -23,7 +25,7 @@ Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 
 - asdf:
   - asdf
-- Creating Checkpoint File:
+- <ins>Creating Checkpoint File:</ins> asdf
   - The checkpoint file can be written by running `./ckpt ./a,out ...` and sending the active process a `SIGUSR2` signal (i.e., `kill SIGUSR2 [PID]`).
 - <ins>Reading Checkpoint File:</ins> asdf
   - Once the checkpoint file is generated, its contents can be read back via `./restart`.

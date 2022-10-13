@@ -1,36 +1,29 @@
 # Lightweight Checkpointing Program
 
-A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") by running `./restart` and it will pick up right where it left off.
+A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out ...`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") at any time thereafter by running `./restart` and the program `a.out` will pick up right where it left off.
 
-This program is entirely self-contained, meaning any executable that is compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
+This program is entirely self-contained, meaning that any executable compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `-rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
 
-More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before it calls `main` (which eventually calls `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
-
-
-
-dummy programs to run ckpt with (counting-test, hello-test)
-
-discuss stack smashing
-
-discuss `%fs` register which predates ucontext.h, so that therei is a bad `%fs` register value upon restart, thus leading to a segfault
-
-
-
+More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before `main` is called (which itself eventually calls `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
 
 Concepts covered in this project include (but are not limited to) checkpointing, context switching, signal handling, environment variables, constructor functions, memory layout, system calls like `mmap`, etc. 
 
 Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
 
-## Implementation Details
+## Items to Note When Using Program
+- <ins>Quick Sample Usage in Makefile:</ins> By running the command `make check`, the Makefile will compile all included files and execute an example of the functionality described above.
+- <ins>Segmentation Fault Following Successful Restart:</ins> After a checkpoint image file is created, you will observe that running `./restart` will eventually `SEGFAULT` upon completion of the original program. Please know that this segmentation fault is wholly inconsequential to the restart and execution of the program. 
+  - This benign `SEGFAULT` results as a consequence of the `ucontext_t` context variable, which is used to store certain register values of the process at the time the `SIGUSR2` signal was received. More specifically, the `ucontext_t` variable from `ucontext.h` does *not* store the data of the `%fs` register. Therefore, upon restart, the program's `%fs` register contains a garbage value which differs from the original `%fs` value at the time the original process was inturrupted. Because it so happens that `exit` uses this register value, the bad `%fs` register value here results in a segmentation fault. This problem can be corrected by manually storing the value of this register somewhere in the checkpoint image file, and then setting its value equal to the register upon restart (please see the Areas for Future Improvement section below).
+- <ins>Stack Smashing:</ins> On some computers, running `./restart` after generating a checkpoint image file will result in a stack smashing detected error. This issue can be avoided by compiling libckpt.c with the flag `-fno-stack-protector`.
 
-- asdf:
-  - asdf
-- <ins>Creating Checkpoint File:</ins> asdf
-  - The checkpoint file can be written by running `./ckpt ./a,out ...` and sending the active process a `SIGUSR2` signal (i.e., `kill SIGUSR2 [PID]`).
-- <ins>Reading Checkpoint File:</ins> asdf
-  - Once the checkpoint file is generated, its contents can be read back via `./restart`.
-- <ins>Restarting via Checkpoint File:</ins> asdf
-  - Once the checkpoint file is generated, the program can be restarted from the point it received the `SIGUSR2` signal via `./restart`.
+## Implementation Details
+- <ins>Creating Checkpoint File:</ins> The checkpoint image file `myckpt.dat` can be obtained by running `./ckpt ./a.out ...` and sending the active process a `SIGUSR2` signal from another terminal.
+- <ins>Contents of Checkpoint File:</ins> The data of the checkpoint image file is written in the format of {HEADER1, DATA1, HEADER2, DATA2, ...}, where the header contains basic details on the data succeeding it (for more on the headers, pleasesee `struct ckpt_sgmt` in libckpt.c).
+  - More specifically, HEADER1 and DATA1 correspond to the `ucontext_t` variable, which contains the context information at the moment in time the executing program received a `SIGUSR2` signal; all subsequent header-data pairs correspond to the memory layout at this time (use the command `cat /proc/self/maps` in the terminal to get a better sense of what this data looks like).
+- <ins>Reading Checkpoint File:</ins> Once the checkpoint image file is created, its contents can be printed to `stdout` by running the command `./readckpt`.
+  - Note: Only the data corresponding to the memory layout are printed, *not* the data corresponding to the `ucontext_t` context variable.
+- <ins>Restarting via Checkpoint File:</ins> Once a checkpoint image file is generated, the program can be restarted at any time by running the command `./restart`.
+  - Please see section above on inconsequential segmentation fault upon completion of restart.
 - <ins>Test/Dummy Programs:</ins> To illustrate the functionality of this lightweight checkpointing program, the following dummy programs are included (note that they are compiled with the `-rdynamic` flag in the Makefile).
   - <ins>counting-test.c</ins>: A simple program taking a single integer as an argument, printing that number and the following 9 numbers (with 1 second between each print) before exiting.
   - <ins>hello-test.c</ins>: A very simple program that takes no arguments, printing "Hello world!" ten times before printing "Goodbye world!" and exiting. 

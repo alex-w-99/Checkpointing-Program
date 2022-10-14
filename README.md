@@ -8,7 +8,7 @@ More specifically, this program exploits the fact that any executable's `_start`
 
 Concepts covered in this project include (but are not limited to) checkpointing, context switching, signal handling, environment variables, constructor functions, memory layout, system calls like `mmap`, etc. 
 
-Tested on Ubuntu 20.04.1, compiled with `gcc -std=gnu17 ...` (used in Makefile).
+Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 
 ## Items to Note When Using Program
 - <ins>Quick Sample Usage in Makefile:</ins> By running the command `make check`, the Makefile will compile all included files and execute an example of the functionality described above.

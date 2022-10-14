@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=gnu17 -g3 -O0
+CFLAGS=-g3 -O0
 
 all: ckpt readckpt restart counting-test hello-test
 

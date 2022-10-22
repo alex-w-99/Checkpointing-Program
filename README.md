@@ -36,11 +36,11 @@ Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 
 ## Screenshots & Video
 
+  - To see this program in action, please click the screen recording video [linked here](https://www.youtube.com/watch?v=FrD10-QyvNs).
+
 <img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot1.png" width="500">
 
 <img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot2.png" width="500">
-
-[![Checkpointing](https://img.youtube.com/vi/FrD10-QyvNs/0.jpg)](https://www.youtube.com/watch?v=FrD10-QyvNs)
 
 ## Acknowledgements 
 

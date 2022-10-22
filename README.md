@@ -36,9 +36,9 @@ Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 
 ## Screenshots
 
-<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/checkpointing_screenshot1.png" width="500">
+<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot1.png" width="500">
 
-<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/checkpointing_screenshot2.png" width="500">
+<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot2.png" width="500">
 
 ## Acknowledgements 
 

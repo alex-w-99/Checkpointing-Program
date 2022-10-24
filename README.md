@@ -1,10 +1,8 @@
 # Lightweight Checkpointing Program
 
-A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out ...`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") at any time thereafter by running `./restart` and the program `a.out` will pick up right where it left off.
+A lightweight checkpointing program written in C. This program is to be run with another executable; for example, `./ckpt ./a.out ...`. The executable will then run as normal until (or if) it receives a `SIGUSR2` signal, at which point a checkpoint image file `myckpt.dat` will be generated and the program will stop. Once this checkpoint image file is generated, the executable can be continued (or "restarted") at any time thereafter by running `./restart` and the program `a.out` will pick up right where it left off. Please see the example video [linked here](https://www.youtube.com/watch?v=FrD10-QyvNs).
 
-This program is entirely self-contained; any executable compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `-rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program.
-
-More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before `main` is called (which itself eventually calls `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
+This program is entirely self-contained; any executable compiled with the flag `gcc -rdynamic` is compatible with this software. The flag `-rdynamic` tells the linker to export symbols for the executable (by default, the linker only exports symbols for shared libraries). This allows us to dynamically load in any other executable that we wish to use with this checkpointing program. More specifically, this program exploits the fact that any executable's `_start` routine first looks at constructors before `main` is called (with the program eventually exiting upon calling `_exit`). In particular, we can use the `LD_PRELOAD` trick - if we set the `LD_PRELOAD` variable to the path of a share object file, that file will be loaded *before* any other library (including before `libc.so`). This allows us to do some unconventional things, like checkpointing!  
 
 Concepts covered in this project include (but are not limited to) checkpointing, context switching, signal handling, environment variables, constructor functions, memory layout, system calls like `mmap`, etc. 
 
@@ -36,11 +34,15 @@ Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 
 ## Screenshots & Video
 
-  - To see this program in action, please click the screen recording video [linked here](https://www.youtube.com/watch?v=FrD10-QyvNs).
+  - To see this program in action, please click the screen recording of the example [linked here](https://www.youtube.com/watch?v=FrD10-QyvNs).
 
-<img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot1.png" width="500">
+<p align="center">
+  <img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot1.png" width="500">
+</p>
 
+<p align="center">
 <img src="https://github.com/alex-w-99/Checkpointing-Program/blob/main/Images/checkpointing_screenshot2.png" width="500">
+</p>
 
 ## Acknowledgements 
 

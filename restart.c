@@ -6,34 +6,43 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include "ckpt_sgmt.h"
 
-char* FILE_NAME = "myckpt.dat";
 
-#define NAME_LEN 80
-struct ckpt_sgmt {  // header
-	void* start;
-	void* end;
-	char rwxp[4];
-	char name[NAME_LEN];
-	int is_register_context;  // 1 if context from getcontext
-	int data_size;
-} ckpt_sgmt;
-
-void print_metadata(struct ckpt_sgmt metadata, int i) {
-	if (metadata.is_register_context == 1) {
-		printf("%d; metadata.name: %s\n", i, metadata.name);
-		printf("\tmetadata.is_register_context: %d\n", metadata.is_register_context);
+/**
+ * A commented-out helper function which prints individual process metadata to stdout.
+ * @param metadata an array of ckpt_sgmt structs which contain process information which was
+ *     captured in myckpt.dat.
+ * @param i int corresponding to the index corresponding the individual process in metadata[] 
+ *     to print to stdout.
+ */
+void print_metadata(struct ckpt_sgmt metadata[], int i) {
+	if (metadata[i].is_register_context == 1) {
+		printf("%d; metadata[%d].name: %s\n", i, i, metadata[i].name);
+		printf("\tmetadata[%d].is_register_context: %d\n", i, metadata[i].is_register_context);
 	}
 	else {
-		printf("%d; metadata.name: %s\n", i, metadata.name);
-		printf("\tstart - end: %p - %p\n", metadata.start, metadata.end);
+		printf("%d; metadata[%d].name: %s\n", i, i, metadata[i].name);
+		printf("\tstart - end: %p - %p\n", metadata[i].start, metadata[i].end);
 		printf("\trwxp: %c%c%c\n", 
-				metadata.rwxp[0], metadata.rwxp[1], metadata.rwxp[2]);
-		printf("\tis_register_context: %d\n", metadata.is_register_context);
-		printf("\tdata_size: %d\n", metadata.data_size);
+				metadata[i].rwxp[0], metadata[i].rwxp[1], metadata[i].rwxp[2]);
+		printf("\tis_register_context: %d\n", metadata[i].is_register_context);
+		printf("\tdata_size: %d\n", metadata[i].data_size);
 	}
 }
 
+/**
+ * A function which reads the myckpt.dat file, mmaps the old processes back into their approriate
+ *     location in memory, and calls setcontext on the old ucontext_t context variable;
+ *     accomplishes this in 5 steps:
+ *     1. Opens the myckpt.dat file which contains context and process metadata and data.
+ *     2. Decelares an array of 1000 ckpt_sgmt struct headers.
+ *     3. Reads the myckpt.dat file, populating the header struct;
+ *            if the data is for ucontext_t, it is read into old_context;
+ *            if the data is for a process, that process is mmap'd into its appropriate memory location.
+ *     4. Closes the open file descriptor corresponing to myckpt.dat.
+ *     5. Calls setcontext(&old_context) to restart the old process.
+ */
 void restart() {
 	ucontext_t old_context;
 
@@ -85,7 +94,7 @@ void restart() {
 			}
 			assert(rc == metadata[i].data_size);
 		}
-		//print_metadata(metadata[i], i);
+		//print_metadata(metadata, i);
 		i = i + 1;
 	}
 
@@ -99,8 +108,12 @@ void restart() {
 	}
 }
 
-// used to grow the stack with many call frames, so that latest call frame
-// will be at an address with no conflict
+/**
+ * A recursive function which is used to grow the stack with many call frames, so
+ *     that the latest call frame will be at an address with no conflict when the
+ *     memort segments of myckpt.dat are mmap'd back into memory. 
+ * @param levels int representing how many recurisve calls to this function to make.
+ */
 void recursive(int levels) {
 	if (levels > 0) {
 		recursive(levels - 1);
@@ -110,6 +123,9 @@ void recursive(int levels) {
 	}
 }
 
+/**
+ * Program entry point.
+ */
 int main() {
 	recursive(1000);
 	

@@ -29,6 +29,7 @@ Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 
 ## Areas for Future Improvement
 
+- [x] Improve project organization by utilizing a .h file to increase shared code, and by adding documentation to functions.
 - [ ] Save the `%fs` register in `myckpt.dat` (the checkpoint image file), so that when the program restarts via `restart.c` and calls `setcontext` in `libckpt.c`, there is no segmentation fault at the very end of the program due to a bad `%fs` register value (as discussed above, `ucontext.h` predates the `%fs` register - a register which is called in `exit` - and so the register's value is lost when restarting).  
 - [ ] Add support for multi-threaded programs. Initially, this project was designed to work only with single-threaded programs; this way, the checkpointing program need not concern itself with the intricacies of things like thread-local storage (TLS), etc.
 

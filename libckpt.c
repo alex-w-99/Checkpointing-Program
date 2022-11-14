@@ -10,23 +10,19 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "ckpt_sgmt.h"
 
-char* FILE_NAME = "myckpt.dat" ;
+ucontext_t context;  // contains certain register values to be saved/restored
 
-#define NAME_LEN 80
-struct ckpt_sgmt {
-	void* start;
-	void* end;
-	char rwxp[4];
-	char name[NAME_LEN];
-	int is_register_context;  // 1 if context from getcontext
-	int data_size;  // size of data after this header; sizeof(context)
-};
 
-// 'context' variable includes certain register values to be saved/restored
-ucontext_t context;
-
-// Returns 0 on success
+/**
+ * Places the information of 1 process in the /proc/self/maps file into the ckpt_sgmt 
+ *     struct process; returns 1 upon success, EOF upon the file's end.
+ * @param proc_maps_fd a file descriptor that points to /proc/self/maps.
+ * @param process an empty struct that will be populated with informatoin corresponding
+ * @param filename an array of char which will have the process's name scanf'd into it. 
+ * @return returns 0 upon success, EOF when there are no more processes left to write.
+ */
 int match_one_line(int proc_maps_fd, struct ckpt_sgmt *process, char* filename) {
 	unsigned long int start, end;
 	char rwxp[4];
@@ -66,8 +62,14 @@ int match_one_line(int proc_maps_fd, struct ckpt_sgmt *process, char* filename) 
 	return 0;
 }
 
+/**
+ * Loops through /proc/self/maps and captures each process's information into a
+ *     ckpt_sgmt struct within the processes[] array.
+ * @param processes[] an emtpy array of 1000 ckpt_sgmt structs that are populated
+ *     with individual processes one at a time.
+ */
 int proc_self_maps(struct ckpt_sgmt processes[]) {
-	// NOTE: fopen() calls malloc() and potentially extends the heap segment
+	// using open() b/c fopen() calls malloc(), potentially extending the heap
 	int proc_maps_fd = open("/proc/self/maps", O_RDONLY);
 	char filename[100];
 	int i = 0;
@@ -79,13 +81,24 @@ int proc_self_maps(struct ckpt_sgmt processes[]) {
 	return 0;
 }
 
+/**
+ * Takes in an empty array of ckpt_sgmt structs and populates them with processes from
+ *     /proc/self/maps; also ensures that this data is written without error.
+ * @param processes[] an empty array of 1000 cpkt_sgmt structs which will be populated
+ *     with individual processes.
+ */
 void get_processes(struct ckpt_sgmt processes[]) {
 	// getting proc/self/maps "header" (struct ckpt_sgmt) info:
 	assert(proc_self_maps(processes) == 0);
-	//assert(proc_self_maps(processes) == 0);
 	return;
 }
 
+/**
+ * A "commented out" helper function that prints individual processes from processes[]
+ *     which satisify certain constraints (the same ones required to be written to the
+ *     dat file).
+ * @param processes[] an array of 1000 ckpt_sgmt structs which contain process data.
+ */
 void print_processes_headers(struct ckpt_sgmt processes[]) {	
 	int i;
 	for (i = 0; processes[i].start != NULL; i++) {
@@ -112,11 +125,19 @@ void print_processes_headers(struct ckpt_sgmt processes[]) {
 	}
 }
 
-void write_context_and_processes(ucontext_t *context_p, struct ckpt_sgmt processes[]) {
+/**
+ * Writes ucontext_t context and process information to a dat file with headers/metadata;
+ *     accomplishes this in 2 parts:
+ *     1. creates a context header and writes it, then writes the context variable,
+ *     2. for each process in processes[], ensures the process satisfies certain constraints,
+ *         then writes the header followed by the actual data itself.
+ * @param processes[] an array of 1000 ckpt_sgmt structs which contain process data. 
+ */
+void write_context_and_processes(struct ckpt_sgmt processes[]) {
 	int fd = open(FILE_NAME, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
 	if (fd == -1) {	perror("open");	}	
 	
-	// PART 1: WRITING CONTEXT
+	// 1 WRITING CONTEXT:
 	// 1A. putting ucontext_t "context" variable into struct
 	struct ckpt_sgmt c;  // ignoring c.start, c.end, c.rwxp
 	strcpy(c.name, "context");
@@ -132,31 +153,31 @@ void write_context_and_processes(ucontext_t *context_p, struct ckpt_sgmt process
 	assert(rc == sizeof(struct ckpt_sgmt));
 
 	// 1B.ii (WRITE 2): writing data (ucontext_t "context" variable)
-	rc = write(fd, context_p, c.data_size);
+	rc = write(fd, &context, c.data_size);
 	if (rc == -1) { perror("write"); }
 	while (rc < c.data_size) {
-		rc += write(fd, context_p + rc, c.data_size - rc);
+		rc += write(fd, &context + rc, c.data_size - rc);
 	}
 	assert(rc == c.data_size);
 
-	// PART 2: WRITING PROCESSES
+	// 2 WRITING PROCESSES:
 	int i;
 	for (i = 0; processes[i].start != NULL; i++) {  // for each process struct...
-		// 1A.i (CHECK 1): ensure process i is not "vdso", "vsyscall", or "vvar"
+		// 2A.i (CHECK 1): ensure process i is not "vdso", "vsyscall", or "vvar"
 		if (strcmp(processes[i].name, "[vsyscall]") == 0
 				|| strcmp(processes[i].name, "[vdso]") == 0
 				|| strcmp(processes[i].name, "[vvar]") == 0) {
 			continue;
 		}
 
-		// 1A.ii (CHECK 2): ensure process i does not have rwxp of "---_"
+		// 2A.ii (CHECK 2): ensure process i does not have rwxp of "---_"
 		if (processes[i].rwxp[0]=='-' 
 				&& processes[i].rwxp[1]=='-' 
 				&& processes[i].rwxp[2]=='-') {
 			continue;
 		}
 
-		// 1B.i (WRITE 1): writing header (ckpt_sgmt process i struct)
+		// 2B.i (WRITE 1): writing header (ckpt_sgmt process i struct)
 		int rc = write(fd, &processes[i], sizeof(struct ckpt_sgmt));
 		if (rc == -1) { perror("write"); }
 		while (rc < sizeof(struct ckpt_sgmt)) {
@@ -164,7 +185,7 @@ void write_context_and_processes(ucontext_t *context_p, struct ckpt_sgmt process
 		}
 		assert(rc == sizeof(struct ckpt_sgmt));
 
-		// 1B.ii (WRITE 2): writing data
+		// 2B.ii (WRITE 2): writing data
 		rc = write(fd, (void*)processes[i].start, processes[i].end - processes[i].start);
 		if (rc == -1) { perror("write"); }
 		while (rc < processes[i].end - processes[i].start) {
@@ -176,17 +197,29 @@ void write_context_and_processes(ucontext_t *context_p, struct ckpt_sgmt process
 	close(fd);
 }
 
-void do_checkpoint(ucontext_t *context_p) {
-	// 1. getting processes, in the form of an array of 1000 structs:
+/**
+ * Writes the ucontext_t context and process information to a dat file with metadata;
+ *     does this by (1) getting all process information (proc/self/maps), and then
+ *     (2) writing the process and (global) context information with metadata. 
+ */
+void do_checkpoint() {
+	// 1. GETTING PROCESSES, IN THE FORM OF AN ARRAY OF 1000 STRUCTS:
 	struct ckpt_sgmt processes[1000];  // assuming max 1000 processes
 	get_processes(processes);
 	//print_processes_headers(processes);
 
-	// 2. writing context and processes:
-	write_context_and_processes(context_p, processes);
+	// 2. WRITING CONTEXT AND PROCESSES:
+	write_context_and_processes(processes);
 }
 
-void signal_handler(int signal) {
+/**
+ * A custom signal handler; calls getcontext, which sets the value of the global context
+ *     variable; if we are not "restarting" (is_restart = 0), then do_checkpoint()
+ *     writes the context information to the checkpoint dat file; if we are restarting,
+ *     then we need not worry about writing (an already existing) checkpoint dat file.
+ * @param signum an integer which corresponds to a signal number.
+ */
+void signal_handler(int signum) {
 	static int is_restart = 0;  // static local variables are stored in data segment
 	int gc = getcontext(&context);
 	if (gc == -1) {
@@ -194,18 +227,23 @@ void signal_handler(int signal) {
 		exit(1);
 	}
 
-	if (is_restart == 1) {
+	if (is_restart == 1) {  // if we are restarting
 		is_restart = 0;
 		printf("*** RESTARTING ***\n");
 		return;
 	} 
-	else {
+	else {  // if we are not yet restarting
 		is_restart = 1;
 		printf("*** WRITING CHECKPOINT IMAGE FILE ***\n");
-		do_checkpoint(&context);
+		do_checkpoint();
 	}
 }
 
+/**
+ * Defines a constructor which is executed when _start first looks for constructors
+ *     before running main(); in particular, my_constructor() registers a custom
+ *     signal handler (see signal_handler() above). 
+ */
 void __attribute__((constructor)) my_constructor() {
 	// constructor calls signal to register a signal handler
 	signal(SIGUSR2, &signal_handler);

@@ -8,21 +8,17 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include "ckpt_sgmt.h"
 
-char* FILE_NAME = "myckpt.dat";
 
-#define NAME_LEN 80
-struct ckpt_sgmt {  // header
-	void* start;
-	void* end;
-	char rwxp[4];
-	char name[NAME_LEN];
-	int is_register_context;  // 0 if memory sgmt; 1 if context from getcontext
-	int data_size;
-};
-
-// read the context from myckpt.dat, placing read in a while loop as usual
-// read(fd, &context, header.data_size);
+/**
+ * A function which reads the context of myckpt.dat (corresponding to fd), and
+ *     places that information into an array of ckpt_sgmt structs (metadata[])
+ *     before printing that information to stdout.
+ * @param fd a file descriptor corresponding to "myckpt.dat".
+ * @param metadata[] an array of empty ckpt_sgmt structs where individual process
+ *        header/metadata information will be placed.
+ */
 void readckpt(int fd, struct ckpt_sgmt metadata[]) {
 	// 1. reading header (metadata) of context variable:
 	int rc = read(fd, &metadata[0], sizeof(metadata[0]));
@@ -75,6 +71,9 @@ void readckpt(int fd, struct ckpt_sgmt metadata[]) {
 	close(fd);
 }
 
+/**
+ * Program entry point.
+ */
 int main() {
 	struct ckpt_sgmt metadata[1000];
 	int fd = open(FILE_NAME, O_RDONLY);

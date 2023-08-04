@@ -52,4 +52,4 @@ Tested on Ubuntu 20.04.1, special/necessary compilation flags used in Makefile.
 ## Contact Information
 
 - Alexander Wilcox
-- Email: alexander.w.wilcox@gmail.com
+- Email: alexander.w.wilcox [at] gmail.com
